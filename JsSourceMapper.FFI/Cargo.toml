@@ -1,0 +1,12 @@
+[package]
+name = "js-source-mapper.ffi"
+version = "0.1.0"
+authors = ["Orvar Segerström <orvarsegerstrom@gmail.com>"]
+
+[dependencies]
+js-source-mapper = "0.1.0"
+libc = "*"
+
+[lib]
+name = "JsSourceMapper_FFI"
+crate-type = ["dylib"]

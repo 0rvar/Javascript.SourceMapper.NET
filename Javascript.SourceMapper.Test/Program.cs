@@ -10,9 +10,12 @@ namespace Javascript.SourceMapper.Test
     {
         static void Main(string[] args)
         {
-            var json = "{ \"version\": 3, \"file\": \"foo.js\", \"sources\": [\"source.js\"], \"names\": [\"name1\", \"name1\", \"name3\"], \"mappings\": \";EAACA;;IAEEA;;MAEEE\", \"sourceRoot\": \"http://example.com\" }";
+            var json = "{ \"version\": 3, \"file\": \"foo.js\", \"sources\": [\"såurce.js\"], \"names\": [\"näme1\", \"name1\", \"name3\"], \"mappings\": \";EAACA;;IAEEA;;MAEEE\", \"sourceRoot\": \"http://example.com\" }";
+
+            Console.WriteLine("Constructing cache...");
             var cache = new SourceMapCache(json);
 
+            Console.WriteLine("Finding mapping...");
             var mapping = cache.SourceMappingFor(2, 2);
 
             Console.WriteLine("{0}", mapping);

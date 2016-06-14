@@ -1,6 +1,8 @@
 @echo off
 setlocal
 
+set msbuild="C:\Program Files (x86)\MSBuild\14.0\Bin\msbuild.exe"
+
 set ffi=JsSourceMapper.FFI
 set proj=Javascript.SourceMapper
 
@@ -34,13 +36,13 @@ if %errorlevel% neq 0 (
 )
 
 echo Building solution
-msbuild %proj%.sln
+%msbuild% %proj%.sln
 if %errorlevel% neq 0 (
 	echo C# build failed
 	goto :exit
 )
 
-msbuild %proj%.sln /p:Configuration=Release
+%msbuild% %proj%.sln /p:Configuration=Release
 if %errorlevel% neq 0 (
 	echo C# build failed
 	goto :exit

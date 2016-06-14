@@ -43,6 +43,19 @@ namespace Javascript.SourceMapper.Test
                     Console.WriteLine("OK: Does not parse empty source maps: {0}", e.Message);
                 }
             }
+            {
+                var json = "not valid";
+                try
+                {
+                    var cache = new SourceMapCache(json);
+                    Console.WriteLine("ERR: Should throw invalid json");
+                    return;
+                }
+                catch (SourceMapParsingException e)
+                {
+                    Console.WriteLine("OK: Does not do weird things with invalid json: {0}", e.Message);
+                }
+            }
         }
     }
 }

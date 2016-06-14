@@ -16,9 +16,9 @@ namespace Javascript.SourceMapper
         internal static extern void error_free(string error);
 
         [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern FFIMapping find_mapping(CacheHandle cache, uint line, uint column);
+        internal static extern IntPtr find_mapping(CacheHandle cache, UInt32 line, UInt32 column);
         [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern uint mapping_free(FFIMapping mapping);
+        internal static extern void mapping_free(IntPtr mapping);
     }
 
     internal class CacheHandle : SafeHandle
@@ -81,7 +81,8 @@ namespace Javascript.SourceMapper
 
         public SourceMapping SourceMappingFor(uint line, uint column)
         {
-            FFIMapping ffiMapping = RustFFIApi.find_mapping(cache, line, column);
+            IntPtr mappingPtr = RustFFIApi.find_mapping(cache, line, column);
+            FFIMapping ffiMapping = Marshal.PtrToStructure<FFIMapping>(mappingPtr);
             var mapping = new SourceMapping
             {
                 SourceLine = ffiMapping.source_line,
@@ -91,7 +92,7 @@ namespace Javascript.SourceMapper
                 Source = (string)Marshal.PtrToStringUni(ffiMapping.source).Clone(),
                 Name = (string)Marshal.PtrToStringUni(ffiMapping.name).Clone()
             };
-            RustFFIApi.mapping_free(ffiMapping);
+            RustFFIApi.mapping_free(mappingPtr);
             return mapping;
         }
 

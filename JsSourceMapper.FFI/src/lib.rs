@@ -55,6 +55,7 @@ pub extern fn find_mapping(cache_ptr: *const Cache, line: uint32_t, column: uint
   }))
 }
 
+#[no_mangle]
 pub extern fn mapping_free(mapping_ptr: *mut Mapping) {
   if mapping_ptr.is_null() { return }
   unsafe {

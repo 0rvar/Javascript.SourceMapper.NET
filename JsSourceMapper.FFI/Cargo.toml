@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Orvar Segerström <orvarsegerstrom@gmail.com>"]
 
 [dependencies]
-js-source-mapper = "0.1.0"
+js-source-mapper = "0.1.1"
 libc = "*"
 
 [lib]

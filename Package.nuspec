@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Javascript.SourceMapper</id>
+    <version>1.0.0</version>
+    <authors>Orvar Segerström</authors>
+    <owners>Orvar Segerström</owners>
+    <licenseUrl>https://raw.githubusercontent.com/awestroke/Javascript.SourceMapper.NET/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/awestroke/Javascript.SourceMapper.NET</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A library for consuming JavaScript source maps with a focus on performance.</description>
+    <releaseNotes>Initial release.</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>JavaScript SourceMap Source Map</tags>
+  </metadata>
+  <files>
+    <file src="Javascript.SourceMapper\bin\Release\Javascript.SourceMapper.dll" target="lib" />
+    <file src="Javascript.SourceMapper\bin\Release\Javascript.SourceMapper.pdb" target="lib" />
+    <file src="Javascript.SourceMapper\bin\Release\Javascript.SourceMapper.xml" target="lib" />
+  </files>
+</package>

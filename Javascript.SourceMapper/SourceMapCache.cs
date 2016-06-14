@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Javascript.SourceMapper
 {
@@ -61,6 +62,13 @@ namespace Javascript.SourceMapper
         public uint GeneratedColumn;
         public string Source;
         public string Name;
+
+        public override string ToString()
+        {
+            return string.Format("SourceMapping[{0}::{1}]{{ {2},{3} => {4},{5} }}", 
+                Source, Name, GeneratedLine, GeneratedColumn, SourceLine, SourceColumn
+            );
+        }
     }
 
     public class SourceMapCache : IDisposable
@@ -79,6 +87,16 @@ namespace Javascript.SourceMapper
             }
         }
 
+        private static string StringFromNativeUtf8(IntPtr nativeUtf8)
+        {
+            int len = 0;
+            while (Marshal.ReadByte(nativeUtf8, len) != 0) ++len;
+            byte[] buffer = new byte[len];
+            Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
+            return Encoding.UTF8.GetString(buffer);
+        }
+
+
         public SourceMapping SourceMappingFor(uint line, uint column)
         {
             IntPtr mappingPtr = RustFFIApi.find_mapping(cache, line, column);
@@ -89,8 +107,8 @@ namespace Javascript.SourceMapper
                 SourceColumn = ffiMapping.source_column,
                 GeneratedLine = ffiMapping.generated_line,
                 GeneratedColumn = ffiMapping.generated_column,
-                Source = (string)Marshal.PtrToStringUni(ffiMapping.source).Clone(),
-                Name = (string)Marshal.PtrToStringUni(ffiMapping.name).Clone()
+                Source = StringFromNativeUtf8(ffiMapping.source),
+                Name = StringFromNativeUtf8(ffiMapping.name)
             };
             RustFFIApi.mapping_free(mappingPtr);
             return mapping;

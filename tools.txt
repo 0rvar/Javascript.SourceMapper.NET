@@ -1,3 +1,0 @@
-"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64\dumpbin.exe" /exports Javascript.SourceMapper\costura32\JsSourceMapper_FFI.dll
-
-js-source-mapper = { path = "../../js-source-mapper", version = "0.1.1" }

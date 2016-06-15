@@ -8,37 +8,30 @@ set proj=Javascript.SourceMapper
 
 echo Building FFI bindings
 pushd %ffi%
-cargo build
-if %errorlevel% neq 0 (
-	echo Cargo build failed
-	goto :exit
-)
-cargo build --release
+cargo build --release --target=i686-pc-windows-msvc
 if %errorlevel% neq 0 (
 	echo Cargo build failed
 	goto :exit
 )
 popd
 
-mkdir %proj%\costura32 2>nul
-
 echo Publishing FFI bindings to project build directory
-for /d %%d in (dll pdb) do (
-	REM cp %ffi%\target\debug\JsSourceMapper_FFI.%%d %proj%\costura32\
-	cp %ffi%\target\release\JsSourceMapper_FFI.%%d %proj%\costura32\
+mkdir %proj%\costura32 2>nul
+cp %ffi%\target\i686-pc-windows-msvc\release\JsSourceMapper_FFI.dll %proj%\costura32\
+if %errorlevel% neq 0 (
+	echo Could not copy DLL to .NET project
+	goto :exit
+)
+cp %ffi%\target\i686-pc-windows-msvc\release\JsSourceMapper_FFI.pdb %proj%\costura32\
+if %errorlevel% neq 0 (
+	echo Could not copy PDB to .NET project
+	goto :exit
 )
 
 echo NuGet restore
 nuget restore %proj%.sln
 if %errorlevel% neq 0 (
 	echo Could not restore NuGet packages
-	goto :exit
-)
-
-echo Building solution
-%msbuild% %proj%.sln
-if %errorlevel% neq 0 (
-	echo C# build failed
 	goto :exit
 )
 

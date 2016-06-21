@@ -22,11 +22,7 @@ if %errorlevel% neq 0 (
 	echo Could not copy DLL to .NET project
 	goto :exit
 )
-cp %ffi%\target\i686-pc-windows-msvc\release\JsSourceMapper_FFI.pdb %proj%\costura32\
-if %errorlevel% neq 0 (
-	echo Could not copy PDB to .NET project
-	goto :exit
-)
+echo.> %proj%\costura32\JsSourceMapper_FFI.pdb
 
 echo NuGet restore
 nuget restore %proj%.sln

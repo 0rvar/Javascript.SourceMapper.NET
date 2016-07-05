@@ -4,33 +4,64 @@ using System.Text;
 
 namespace Javascript.SourceMapper
 {
-    internal class RustFfiApi
+    internal class RustFfiApi32
     {
-        [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern CacheHandle cache_init([In] byte[] json);
-        [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern CacheHandle32 cache_init([In] byte[] json);
+        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void cache_free(IntPtr cache);
 
-        [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr get_error(CacheHandle cache);
-        [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr get_error(CacheHandle32 cache);
+        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void error_free(IntPtr error);
 
-        [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr find_mapping(CacheHandle cache, UInt32 line, UInt32 column);
-        [DllImport("JsSourceMapper_FFI", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr find_mapping(CacheHandle32 cache, UInt32 line, UInt32 column);
+        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void mapping_free(IntPtr mapping);
     }
 
-    internal class CacheHandle : SafeHandle
+    internal class CacheHandle32 : SafeHandle
     {
-        public CacheHandle() : base(IntPtr.Zero, true) { }
+        public CacheHandle32() : base(IntPtr.Zero, true) { }
 
         public override bool IsInvalid => false;
 
         protected override bool ReleaseHandle()
         {
-            RustFfiApi.cache_free(handle);
+            RustFfiApi32.cache_free(handle);
+            return true;
+        }
+    }
+
+    internal class RustFfiApi64
+    {
+        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern CacheHandle64 cache_init([In] byte[] json);
+        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void cache_free(IntPtr cache);
+
+        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr get_error(CacheHandle64 cache);
+        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void error_free(IntPtr error);
+
+        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr find_mapping(CacheHandle64 cache, UInt32 line, UInt32 column);
+        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void mapping_free(IntPtr mapping);
+    }
+
+    internal class CacheHandle64 : SafeHandle
+    {
+        public CacheHandle64() : base(IntPtr.Zero, true) { }
+
+        public override bool IsInvalid => false;
+
+        protected override bool ReleaseHandle()
+        {
+            RustFfiApi64.cache_free(handle);
             return true;
         }
     }
@@ -100,7 +131,8 @@ namespace Javascript.SourceMapper
     /// </summary>
     public class SourceMapCache : IDisposable
     {
-        private readonly CacheHandle _cache;
+        private readonly CacheHandle32 _cache32;
+        private readonly CacheHandle64 _cache64;
 
         /// <summary>
         /// Processes a source map and constructs a cache for fast mapping lookups.
@@ -109,14 +141,49 @@ namespace Javascript.SourceMapper
         /// <exception cref="SourceMapParsingException">If the source map is malformed</exception>
         public SourceMapCache(string json)
         {
-            _cache = RustFfiApi.cache_init(Utils.NullTerminatedUtf8Bytes(json));
-            IntPtr errPtr = RustFfiApi.get_error(_cache);
-            if(errPtr != IntPtr.Zero)
+            if (Is64Bit())
             {
-                string error = Utils.StringFromNativeUtf8(errPtr);
-                RustFfiApi.error_free(errPtr);
+                _cache64 = RustFfiApi64.cache_init(Utils.NullTerminatedUtf8Bytes(json));
+            }
+            else
+            {
+                _cache32 = RustFfiApi32.cache_init(Utils.NullTerminatedUtf8Bytes(json));
+            }
+            string error = getError();
+            if (error != null)
+            {
                 throw new SourceMapParsingException(error);
             }
+        }
+
+        private string getError() {
+            IntPtr errPtr;
+
+            if(Is64Bit())
+            {
+                errPtr = RustFfiApi64.get_error(_cache64);
+            } else
+            {
+                errPtr = RustFfiApi32.get_error(_cache32);
+            }
+
+            if(errPtr == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            string error = Utils.StringFromNativeUtf8(errPtr);
+
+            if (Is64Bit())
+            {
+                RustFfiApi64.error_free(errPtr);
+            }
+            else
+            {
+                RustFfiApi32.error_free(errPtr);
+            }
+
+            return error;
         }
 
         /// <summary>
@@ -128,7 +195,17 @@ namespace Javascript.SourceMapper
         /// <returns></returns>
         public SourceMapping SourceMappingFor(uint line, uint column)
         {
-            IntPtr mappingPtr = RustFfiApi.find_mapping(_cache, line, column);
+            IntPtr mappingPtr;
+
+            if (Is64Bit())
+            {
+                mappingPtr = RustFfiApi64.find_mapping(_cache64, line, column);
+            }
+            else
+            {
+                mappingPtr = RustFfiApi32.find_mapping(_cache32, line, column);
+            }
+
             FfiMapping ffiMapping = Marshal.PtrToStructure<FfiMapping>(mappingPtr);
             var mapping = new SourceMapping
             {
@@ -139,13 +216,32 @@ namespace Javascript.SourceMapper
                 Source = Utils.StringFromNativeUtf8(ffiMapping.source),
                 Name = Utils.StringFromNativeUtf8(ffiMapping.name)
             };
-            RustFfiApi.mapping_free(mappingPtr);
+
+            if (Is64Bit())
+            {
+                RustFfiApi64.mapping_free(mappingPtr);
+            }
+            else
+            {
+                RustFfiApi32.mapping_free(mappingPtr);
+            }
             return mapping;
         }
 
         public void Dispose()
         {
-            _cache.Dispose();
+            if (_cache64 != null)
+            {
+                _cache64.Dispose();
+            }
+            if (_cache32 != null)
+            {
+                _cache32.Dispose();
+            }
+        }
+
+        private bool Is64Bit() {
+            return IntPtr.Size == 8;
         }
     }
 

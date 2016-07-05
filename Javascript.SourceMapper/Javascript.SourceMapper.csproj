@@ -42,8 +42,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="costura32\JsSourceMapper_FFI.dll" />
-    <EmbeddedResource Include="costura32\JsSourceMapper_FFI.pdb" />
+    <EmbeddedResource Include="costura32\JsSourceMapper_FFI_32.dll" />
+    <EmbeddedResource Include="costura64\JsSourceMapper_FFI_64.dll" />
     <Content Include="FodyWeavers.xml">
       <SubType>Designer</SubType>
     </Content>

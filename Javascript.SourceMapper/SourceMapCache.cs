@@ -1,88 +1,11 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Javascript.SourceMapper
 {
-    internal class RustFfiApi32
-    {
-        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern CacheHandle32 cache_init([In] byte[] json);
-        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void cache_free(IntPtr cache);
-
-        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr get_error(CacheHandle32 cache);
-        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void error_free(IntPtr error);
-
-        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr find_mapping(CacheHandle32 cache, UInt32 line, UInt32 column);
-        [DllImport("JsSourceMapper_FFI_32", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void mapping_free(IntPtr mapping);
-    }
-
-    internal class CacheHandle32 : SafeHandle
-    {
-        public CacheHandle32() : base(IntPtr.Zero, true) { }
-
-        public override bool IsInvalid => false;
-
-        protected override bool ReleaseHandle()
-        {
-            RustFfiApi32.cache_free(handle);
-            return true;
-        }
-    }
-
-    internal class RustFfiApi64
-    {
-        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern CacheHandle64 cache_init([In] byte[] json);
-        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void cache_free(IntPtr cache);
-
-        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr get_error(CacheHandle64 cache);
-        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void error_free(IntPtr error);
-
-        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr find_mapping(CacheHandle64 cache, UInt32 line, UInt32 column);
-        [DllImport("JsSourceMapper_FFI_64", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void mapping_free(IntPtr mapping);
-    }
-
-    internal class CacheHandle64 : SafeHandle
-    {
-        public CacheHandle64() : base(IntPtr.Zero, true) { }
-
-        public override bool IsInvalid => false;
-
-        protected override bool ReleaseHandle()
-        {
-            RustFfiApi64.cache_free(handle);
-            return true;
-        }
-    }
-
-    internal class Utils
-    {
-        public static string StringFromNativeUtf8(IntPtr nativeUtf8)
-        {
-            int len = 0;
-            while (Marshal.ReadByte(nativeUtf8, len) != 0) ++len;
-            byte[] buffer = new byte[len];
-            Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
-            return Encoding.UTF8.GetString(buffer);
-        }
-
-        public static byte[] NullTerminatedUtf8Bytes(string str)
-        {
-            return Encoding.UTF8.GetBytes(str + "\0");
-        }
-    }
-
     /// <summary>
     /// Raised for mailformed of empty source maps, contains Message explaining why parsing failed.
     /// </summary>
@@ -95,44 +18,90 @@ namespace Javascript.SourceMapper
         public SourceMapParsingException(string message) : base(message) { }
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct FfiMapping
-    {
-        public uint source_line;
-        public uint source_column;
-        public uint generated_line;
-        public uint generated_column;
-        public IntPtr source;
-        public IntPtr name;
-    }
-
     /// <summary>
     /// Represents a mapping from a generated position to a source position and, optionally, source file name and function name.
     /// </summary>
     public class SourceMapping
     {
-        public uint SourceLine;
-        public uint SourceColumn;
-        public uint GeneratedLine;
-        public uint GeneratedColumn;
-        public string Source;
-        public string Name;
+        public uint SourceLine { get; internal set;  }
+        public uint SourceColumn { get; internal set; }
+        public uint GeneratedLine { get; internal set; }
+        public uint GeneratedColumn { get; internal set; }
+        public string SourceFile { get; internal set; }
+        public string SourceName { get; internal set; }
+
+        internal SourceMapping() {}
+        internal SourceMapping(uint sourceLine, uint sourceColumn, uint generatedLine, uint generatedColumn, string sourceFile, string sourceName)
+        {
+            SourceLine = sourceLine;
+            SourceColumn = sourceColumn;
+            GeneratedLine = generatedLine;
+            GeneratedColumn = generatedColumn;
+            SourceFile = sourceFile;
+            SourceName = sourceName;
+        }
+
+        public override bool Equals(object obj)
+        {
+            var item = obj as SourceMapping;
+
+            if (item == null)
+            {
+                return false;
+            }
+
+            return (
+                SourceLine == item.SourceLine &&
+                SourceColumn == item.SourceColumn &&
+                GeneratedLine == item.GeneratedLine &&
+                GeneratedColumn == item.GeneratedColumn &&
+                SourceFile == item.SourceFile &&
+                SourceName == item.SourceName
+            );
+        }
 
         public override string ToString()
         {
-            return string.Format("SourceMapping[{0}::{1}]{{ {2},{3} => {4},{5} }}", 
-                Source, Name, GeneratedLine, GeneratedColumn, SourceLine, SourceColumn
+            return string.Format("SourceMapping[{0}::{1}]{{ {2},{3} => {4},{5} }}",
+                SourceFile, SourceName, GeneratedLine, GeneratedColumn, SourceLine, SourceColumn
             );
         }
     }
 
     /// <summary>
     /// Represents a processed source map that can be queries for generated->source mapping information.
+    /// The only parameter is the raw source map as a JSON string.
+    /// According to the [source map spec][source-map-spec], source maps have the following attributes:
+    ///
+    ///   - version: Which version of the source map spec this map is following.
+    ///   - sources: An array of URLs to the original source files.
+    ///   - names: An array of identifiers which can be referrenced by individual mappings.
+    ///   - sourceRoot: Optional. The URL root from which all sources are relative.
+    ///   - sourcesContent: Optional. An array of contents of the original source files.
+    ///   - mappings: A string of base64 VLQs which contain the actual mappings.
+    ///   - file: Optional. The generated file this source map is associated with.
+    ///
+    /// Here is an example source map:
+    ///
+    /// ```json
+    ///     {
+    ///       "version": 3,
+    ///       "file": "out.js",
+    ///       "sourceRoot" : "",
+    ///       "sources": ["foo.js", "bar.js"],
+    ///       "names": ["src", "maps", "are", "fun"],
+    ///       "mappings": "AA,AB;;ABCDE;"
+    ///     }
+    /// ```
+    ///
+    /// [source-map-spec]: https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k/edit?pli=1#
     /// </summary>
-    public class SourceMapCache : IDisposable
+    public class SourceMapCache
     {
-        private readonly CacheHandle32 _cache32;
-        private readonly CacheHandle64 _cache64;
+        private const uint SOURCE_MAP_VERSION = 3;
+
+        private readonly SourceMap sourceMap;
+        private List<SourceMapping> generatedMappings;
 
         /// <summary>
         /// Processes a source map and constructs a cache for fast mapping lookups.
@@ -141,50 +110,131 @@ namespace Javascript.SourceMapper
         /// <exception cref="SourceMapParsingException">If the source map is malformed</exception>
         public SourceMapCache(string json)
         {
-            if (Is64Bit())
-            {
-                _cache64 = RustFfiApi64.cache_init(Utils.NullTerminatedUtf8Bytes(json));
-            }
-            else
-            {
-                _cache32 = RustFfiApi32.cache_init(Utils.NullTerminatedUtf8Bytes(json));
-            }
-            string error = getError();
-            if (error != null)
-            {
-                throw new SourceMapParsingException(error);
-            }
+            sourceMap = JsonConvert.DeserializeObject<SourceMap>(json);
+            processSourceMap();
         }
 
-        private string getError() {
-            IntPtr errPtr;
-
-            if(Is64Bit())
-            {
-                errPtr = RustFfiApi64.get_error(_cache64);
-            } else
-            {
-                errPtr = RustFfiApi32.get_error(_cache32);
-            }
-
-            if(errPtr == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            string error = Utils.StringFromNativeUtf8(errPtr);
-
-            if (Is64Bit())
-            {
-                RustFfiApi64.error_free(errPtr);
-            }
-            else
-            {
-                RustFfiApi32.error_free(errPtr);
-            }
-
-            return error;
+        internal SourceMapCache(SourceMap sourceMap)
+        {
+            this.sourceMap = sourceMap;
+            processSourceMap();
         }
+
+        void processSourceMap()
+        {
+            if(sourceMap.version != SOURCE_MAP_VERSION)
+            {
+                throw new SourceMapParsingException("Invalid source map: version != 3");
+            }
+
+            var numSources = sourceMap.sources.Length;
+            var numNames = sourceMap.names.Length;
+
+            var generatedMappings = new List<SourceMapping>();
+
+            uint generatedLine = 0;
+            uint previousOriginalLine = 0;
+            uint previousOriginalColumn = 0;
+            uint previousSource = 0;
+            uint previousName = 0;
+
+            foreach(string line in sourceMap.mappings.Split(';'))
+            {
+                generatedLine += 1;
+                uint previousGeneratedColumn = 0;
+
+                foreach(string segment in line.Split(','))
+                {
+                    var segmentLength = segment.Length;
+                    var fields = new List<int>();
+                    var characterIndex = 0;
+                    while(characterIndex < segmentLength)
+                    {
+                        var field = Base64VLQConverter.Decode(segment.Substring(characterIndex, segmentLength - characterIndex));
+                        fields.Add(field.Result);
+                        characterIndex += field.CharactersRead;
+                    }
+
+                    var numFields = fields.Count;
+                    if(numFields < 1)
+                    {
+                        continue;
+                    }
+
+                    if(numFields == 2)
+                    {
+                        throw new SourceMapParsingException("Found a source, but no line and column");
+                    }
+
+                    if (numFields == 3)
+                    {
+                        throw new SourceMapParsingException("Found a source and line, but no column");
+                    }
+
+                    previousGeneratedColumn = (uint)(previousGeneratedColumn + fields[0]);
+
+                    var mapping = new SourceMapping()
+                    {
+                        GeneratedLine = generatedLine,
+                        GeneratedColumn = previousGeneratedColumn
+                    };
+
+                    if(numFields < 2)
+                    {
+                        mapping.SourceFile = "";
+                        mapping.SourceName = "";
+                    }
+                    else
+                    {
+                        previousSource = (uint)(previousSource + fields[1]);
+                        if(previousSource >= 0 && previousSource < numSources)
+                        {
+                            mapping.SourceFile = sourceMap.sources[previousSource];
+                        }
+                        else
+                        {
+                            throw new SourceMapParsingException($"Invalid source map: reference to source index {previousSource} when source list length is {numSources}");
+                        }
+
+                        previousOriginalLine = (uint)(previousOriginalLine + fields[2]);
+                        mapping.SourceLine = previousOriginalLine + 1;
+
+                        previousOriginalColumn = (uint)(previousOriginalColumn + fields[3]);
+                        mapping.SourceColumn = previousOriginalColumn;
+
+                        if(numFields > 4)
+                        {
+                            previousName = (uint)(previousName + fields[4]);
+                            if (previousName >= 0 && previousName < numNames)
+                            {
+                                mapping.SourceName = sourceMap.names[previousName];
+                            }
+                            else
+                            {
+                                throw new SourceMapParsingException($"Invalid source map: reference to name index {previousName} when name list length is {numNames}");
+                            }
+                        }
+                        else
+                        {
+                            mapping.SourceName = "";
+                        }
+                    }
+
+                    generatedMappings.Add(mapping);
+                }
+            }
+
+            
+            if(generatedMappings.Count < 1)
+            {
+                throw new SourceMapParsingException("Source map contains no mappings");
+            }
+
+            generatedMappings.Sort(new CompareGeneratedItems());
+
+            this.generatedMappings = generatedMappings;
+        }
+
 
         /// <summary>
         /// Finds the mapping for a generated position to the source position,
@@ -195,54 +245,45 @@ namespace Javascript.SourceMapper
         /// <returns></returns>
         public SourceMapping SourceMappingFor(uint line, uint column)
         {
-            IntPtr mappingPtr;
-
-            if (Is64Bit())
+            var mockItem = new SourceMapping()
             {
-                mappingPtr = RustFfiApi64.find_mapping(_cache64, line, column);
-            }
-            else
-            {
-                mappingPtr = RustFfiApi32.find_mapping(_cache32, line, column);
-            }
-
-            FfiMapping ffiMapping = Marshal.PtrToStructure<FfiMapping>(mappingPtr);
-            var mapping = new SourceMapping
-            {
-                SourceLine = ffiMapping.source_line,
-                SourceColumn = ffiMapping.source_column,
-                GeneratedLine = ffiMapping.generated_line,
-                GeneratedColumn = ffiMapping.generated_column,
-                Source = Utils.StringFromNativeUtf8(ffiMapping.source),
-                Name = Utils.StringFromNativeUtf8(ffiMapping.name)
+                GeneratedLine = line,
+                GeneratedColumn = column
             };
-
-            if (Is64Bit())
+            var position = generatedMappings.BinarySearch(mockItem, new CompareGeneratedItems());
+            if(position < 0)
             {
-                RustFfiApi64.mapping_free(mappingPtr);
+                return generatedMappings[Math.Min(~position, generatedMappings.Count - 1)];
             }
             else
             {
-                RustFfiApi32.mapping_free(mappingPtr);
+                return generatedMappings[position];
             }
-            return mapping;
         }
 
-        public void Dispose()
+        private class CompareGeneratedItems : IComparer<SourceMapping>
         {
-            if (_cache64 != null)
+            public int Compare(SourceMapping x, SourceMapping y)
             {
-                _cache64.Dispose();
+                int result = x.GeneratedLine.CompareTo(y.GeneratedLine);
+                return result == 0 ? x.GeneratedColumn.CompareTo(y.GeneratedColumn) : result;
             }
-            if (_cache32 != null)
-            {
-                _cache32.Dispose();
-            }
-        }
-
-        private bool Is64Bit() {
-            return IntPtr.Size == 8;
         }
     }
 
+    internal class CodePosition
+    {
+        public readonly uint line;
+        public readonly uint column;
+    }
+
+    internal class SourceMap
+    {
+        public uint version;
+        public string[] sources;
+        public string[] names;
+        public string sourceRoot;
+        public string mappings;
+        public string file;
+    }
 }

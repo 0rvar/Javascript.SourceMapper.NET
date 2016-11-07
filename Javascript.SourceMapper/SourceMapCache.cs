@@ -1,7 +1,8 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 using System.Text;
 
 namespace Javascript.SourceMapper
@@ -106,11 +107,19 @@ namespace Javascript.SourceMapper
         /// <summary>
         /// Processes a source map and constructs a cache for fast mapping lookups.
         /// </summary>
-        /// <param name="json">Source Map in JSON format</param>
+        /// <param name="json">Source Map in JSON format as a string</param>
         /// <exception cref="SourceMapParsingException">If the source map is malformed</exception>
-        public SourceMapCache(string json)
+        public SourceMapCache(string json) : this(new MemoryStream(Encoding.UTF8.GetBytes(json))) { }
+
+        /// <summary>
+        /// Processes a source map and constructs a cache for fast mapping lookups.
+        /// </summary>
+        /// <param name="json">Source Map in JSON format as a stream</param>
+        /// <exception cref="SourceMapParsingException">If the source map is malformed</exception>
+        public SourceMapCache(Stream json)
         {
-            sourceMap = JsonConvert.DeserializeObject<SourceMap>(json);
+            var serializer = new DataContractJsonSerializer(typeof(SourceMap));
+            sourceMap = (SourceMap)serializer.ReadObject(json);
             processSourceMap();
         }
 
@@ -277,13 +286,20 @@ namespace Javascript.SourceMapper
         public readonly uint column;
     }
 
+    [DataContract]
     internal class SourceMap
     {
+        [DataMember]
         public uint version;
+        [DataMember]
         public string[] sources;
+        [DataMember]
         public string[] names;
+        [DataMember]
         public string sourceRoot;
+        [DataMember]
         public string mappings;
+        [DataMember]
         public string file;
     }
 }

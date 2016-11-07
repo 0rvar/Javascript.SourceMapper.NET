@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,19 +45,24 @@ namespace Javascript.SourceMapper.Test
                     Console.WriteLine("OK: Does not parse empty source maps: {0}", e.Message);
                 }
             }
+            if(args.Length > 0)
             {
-                var json = "not valid";
-                try
+                var jsonPath = args[0];
+                Console.WriteLine($"Performance testing with source map: {jsonPath}");
+                var watch = new Stopwatch();
+                for(var i = 0; i < 10; i++)
                 {
-                    var cache = new SourceMapCache(json);
-                    Console.WriteLine("ERR: Should throw invalid json");
-                    return;
+                    Console.WriteLine($"Run {i}/10, {watch.ElapsedMilliseconds}ms elapsed");
+                    watch.Start();
+                    //var json = File.ReadAllText(jsonPath);
+                    var jsonStream = new FileStream(jsonPath, FileMode.Open, FileAccess.Read);
+                    var cache = new SourceMapCache(jsonStream);
+                    var mapping = cache.SourceMappingFor(2, 2);
+                    watch.Stop();
                 }
-                catch (SourceMapParsingException e)
-                {
-                    Console.WriteLine("OK: Does not do weird things with invalid json: {0}", e.Message);
-                }
+                Console.WriteLine($"Average duration (read, parse, query): {watch.ElapsedMilliseconds / 10}ms");
             }
+           Console.ReadLine();
         }
     }
 }

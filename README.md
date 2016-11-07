@@ -19,16 +19,15 @@ class Program
 {
   public static void Main(string[] args)
   {
-    var json = File.ReadAllText("./bundle.min.js.map");
-
-    var cache = new SourceMapCache(json);
+    var jsonStream = new FileStream("bundle.min.js.map", FileMode.Open, FileAccess.Read);
+    var cache = new SourceMapCache(jsonStream);
     var mapping = cache.SourceMappingFor(2, 2);
     Debug.Assert(mapping.GeneratedLine == 2);
     Debug.Assert(mapping.GeneratedColumn == 2);
     Debug.Assert(mapping.SourceLine == 1);
     Debug.Assert(mapping.SourceColumn == 1);
-    Debug.Assert(mapping.Source == "source.js");
-    Debug.Assert(mapping.Name == "name1");
+    Debug.Assert(mapping.SourceFile == "source.js");
+    Debug.Assert(mapping.SourceName == "name1");
   }
 }
 ```

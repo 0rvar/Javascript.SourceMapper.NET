@@ -2,14 +2,14 @@
 <package >
   <metadata>
     <id>Javascript.SourceMapper</id>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <authors>Orvar Segerström</authors>
     <owners>Orvar Segerström</owners>
     <licenseUrl>https://raw.githubusercontent.com/awestroke/Javascript.SourceMapper.NET/master/LICENSE</licenseUrl>
     <projectUrl>https://github.com/awestroke/Javascript.SourceMapper.NET</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>A library for consuming JavaScript source maps with a focus on performance.</description>
-    <releaseNotes>Complete rewrite in C# due to problems with Rust FFI bindings and Fody Costura integration.</releaseNotes>
+    <releaseNotes>Downgrade to .NET v4.5.</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>JavaScript SourceMap Source Map</tags>
   </metadata>
